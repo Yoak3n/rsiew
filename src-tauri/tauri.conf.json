@@ -26,9 +26,6 @@
     "active": true,
     "targets": "nsis",
     "windows": {
-      "resources": {
-        "target/release/rsiew-cli.exe": "rsiew-cli.exe"
-      },
       "nsis": {
         "installerHooks": "build/nsis/hooks.nsh"
       }
