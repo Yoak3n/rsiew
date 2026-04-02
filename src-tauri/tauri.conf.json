@@ -27,7 +27,7 @@
     "targets": "nsis",
     "windows": {
       "nsis": {
-        "installerHooks": "hooks.nsh"
+        "installerHooks": "build/nsis/hooks.nsh"
       }
     },
     "icon": [

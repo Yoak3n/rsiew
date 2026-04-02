@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "version:patch": "npx tauri-version patch",
+    "version:minor": "npx tauri-version minor",
+    "version:major": "npx tauri-version major"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
