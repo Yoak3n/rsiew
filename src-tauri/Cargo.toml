@@ -1,6 +1,6 @@
 [package]
 name = "rsiew"
-version = "0.1.3"
+version = "0.1.4"
 description = "A simplified Work Review clone with Native Icons and Tray"
 authors = ["you"]
 edition = "2021"
