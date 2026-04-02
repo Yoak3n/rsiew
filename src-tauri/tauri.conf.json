@@ -25,10 +25,10 @@
   "bundle": {
     "active": true,
     "targets": "nsis",
-    "resources": {
-      "target/release/rsiew-cli.exe": "rsiew-cli.exe"
-    },
     "windows": {
+      "resources": {
+        "target/release/rsiew-cli.exe": "rsiew-cli.exe"
+      },
       "nsis": {
         "installerHooks": "build/nsis/hooks.nsh"
       }
