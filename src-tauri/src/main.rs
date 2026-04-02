@@ -86,9 +86,40 @@ fn attach_console() {}
 
 
 
-#[cfg(windows)]
+ #[cfg(windows)]
 fn detach_and_send_enter() {
-    // Do nothing - let the console remain attached for PowerShell to use
+    use winapi::um::wincon::{FreeConsole, WriteConsoleInputW, INPUT_RECORD, KEY_EVENT};
+    use winapi::um::processenv::GetStdHandle;
+    use winapi::um::winbase::STD_INPUT_HANDLE;
+    use winapi::um::winuser::VK_RETURN;
+    use std::ptr;
+ 
+    unsafe {
+        let stdin = GetStdHandle(STD_INPUT_HANDLE);
+        if stdin != ptr::null_mut() && stdin != winapi::um::handleapi::INVALID_HANDLE_VALUE {
+            let mut record: INPUT_RECORD = std::mem::zeroed();
+            record.EventType = KEY_EVENT;
+            {
+                let key_event = record.Event.KeyEvent_mut();
+                key_event.bKeyDown = 1;
+                key_event.wVirtualKeyCode = VK_RETURN as u16;
+                key_event.wVirtualScanCode = 0x1C;
+                *key_event.uChar.UnicodeChar_mut() = '\r' as u16;
+                key_event.dwControlKeyState = 0;
+            }
+ 
+            let mut written = 0;
+            WriteConsoleInputW(stdin, &mut record, 1, &mut written);
+ 
+            {
+                let key_event = record.Event.KeyEvent_mut();
+                key_event.bKeyDown = 0;
+            }
+            WriteConsoleInputW(stdin, &mut record, 1, &mut written);
+        }
+        FreeConsole();
+    }
+
 }
 
 #[cfg(not(windows))]
@@ -116,7 +147,17 @@ fn truncate_string(s: &str, max_len: usize) -> String {
 }
 
 fn print_console(msg: &str) {
-    print!("{}", msg);
+       use std::io::Write;
+    #[cfg(windows)]
+    {
+        let formatted = msg.replace("\r\n", "\n").replace('\n', "\r\n");
+        print!("{}", formatted);
+    }
+    #[cfg(not(windows))]
+    {
+        print!("{}", msg);
+    }
+    let _ = std::io::stdout().flush();
 }
 
 fn main() {
