@@ -79,12 +79,73 @@ pub fn get_active_window() -> Result<ActiveWindow, String> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 pub fn get_active_window() -> Result<ActiveWindow, String> {
-    Ok(ActiveWindow {
-        app_name: normalize_display_app_name("MockApp", "MockTitle"),
-        window_title: "MockTitle".to_string(),
-        exe_path: "/mock/path/MockApp.exe".to_string(),
+
+    let xprop_id = Command::new("xprop")
+    .args(["-root","-_NET_ACTIVE_WINDOW"])
+    .output()
+    .map_err(|e| format!("Failed to execute xprop: {}", e))?;
+
+    if !xprop_id.status.success() {
+        return Err(format!("xprop failed: {}", String::from_utf8_lossy(&xprop_id.stderr)));
+    }
+    let id_out = String::from_utf8_lossy(&xprop_id.stdout);
+
+    let wind_id = id_out
+        .split_whitespace()
+        .last()
+        .ok_or_else(|| "Failed to parse active window ID".to_string())?;
+
+    if wind_id == "0x0" {
+        return Err("No active window".to_string());
+    }
+
+    let xprop_props = Command::new("xprop")
+        .args(["-id", wind_id, "WM_CLASS", "_NET_WM_NAME", "WM_NAME"])
+        .output()
+        .map_err(|e| format!("Failed to run xprop for window {}: {}", wind_id, e))?;
+
+    let props_out = String::from_utf8_lossy(&xprop_props.stdout);
+
+    let mut app_name = String::new();
+    let mut window_title = String::new();
+
+    for line in props_out.lines(){
+        if line.starts_with("WM_CLASS"){
+            if let Some(class_str) = line.split('=').nth(1){
+                let parts:Vec<&str> = class_str.split(',').collect();
+                let target = parts.last().unwrap_or(&parts[0]).trim();
+                app_name = target.trim_matches('"').to_string()
+            }
+        }else if line.starts_with("_NET_WM_NAME") || (window_title.is_empty() && line.starts_with("WM_NAME")){
+            if let Some(title_str) = line.split('=').nth(1){
+                window_title = title_str.trim().trim_matches('"').to_string()
+            }
+        }
+    }
+    if app_name.is_empty(){
+        app_name = "Unknown".to_string();
+    }
+
+
+    let mut exe_path= String::new();
+    if let Ok(pid_output) = Command::new("xprop")
+        .args(["-id",wind_id,"_NET_WM_PID"])
+        .output()
+    {
+        let pid_str = String::from_utf8_lossy(&pid_output.stdout);
+        if let Some(pid) = pid_str.split('=').nth(1).map(|s|s.trim()){
+            if let Ok(path) = std::fs::read_link(format!("/proc/{}/exe",pid)){
+                exe_path = path.to_string_lossy().to_string();
+            }
+        }
+    }
+
+    Ok(ActiveWindow{
+        app_name: normalize_display_app_name(&app_name, &window_title),
+        window_title,
+        exe_path
     })
 }
 
@@ -114,7 +175,20 @@ pub fn normalize_display_app_name(raw_name: &str, window_title: &str) -> String 
         "postman" => "Postman".to_string(),
         _ => {
             let mut c = raw_name.chars();
-            match c.next() { None => String::new(), Some(f) => f.to_uppercase().collect::<String>() + c.as_str() }
+            match c.next() { 
+                None => String::new(), 
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str() 
+            }
         }
     }
+}
+
+
+#[cfg(target_os = "macos")]
+pub fn get_active_window() -> Result<ActiveWindow, String> {
+    Ok(ActiveWindow {
+        app_name: normalize_display_app_name("MockApp", "MockTitle"),
+        window_title: "MockTitle".to_string(),
+        exe_path: "/mock/path/MockApp.app".to_string(),
+    })
 }

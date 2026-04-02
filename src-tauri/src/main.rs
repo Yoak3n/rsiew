@@ -124,7 +124,7 @@ fn main() {
     user_path::add_to_user_path();
     #[cfg(all(windows, not(debug_assertions)))]
     attach_console();
-
+    print!("entry");
     let cli = match Cli::try_parse() {
         Ok(c) => c,
         Err(e) => {
