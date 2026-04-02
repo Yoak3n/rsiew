@@ -3,6 +3,7 @@ pub mod monitor;
 pub mod ocr;
 pub mod screenshot;
 pub mod icon_extractor;
+pub mod user_path;
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

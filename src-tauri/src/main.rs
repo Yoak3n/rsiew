@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod user_path;
+
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -41,102 +43,11 @@ fn get_data_dir() -> PathBuf {
     path
 }
 
-#[cfg(windows)]
-fn remove_from_user_path() {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let exe_dir_str = exe_dir.to_string_lossy().to_string();
-            
-            use winreg::enums::*;
-            use winreg::RegKey;
-            use winapi::um::winuser::{SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG};
-            use std::os::windows::ffi::OsStrExt;
 
-            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-            if let Ok((env, _)) = hkcu.create_subkey("Environment") {
-                let current_path: String = env.get_value("Path").unwrap_or_default();
-                
-                if current_path.contains(&exe_dir_str) {
-                    let mut paths: Vec<&str> = current_path.split(';').collect();
-                    paths.retain(|p| *p != exe_dir_str);
-                    let new_path = paths.join(";");
-                    
-                    let _ = env.set_value("Path", &new_path);
-                    
-                    // Broadcast environment change
-                    unsafe {
-                        use winapi::shared::minwindef::{WPARAM, LPARAM};
-                        let env_str: Vec<u16> = std::ffi::OsStr::new("Environment").encode_wide().chain(std::iter::once(0)).collect();
-                        SendMessageTimeoutW(
-                            HWND_BROADCAST,
-                            0x001A, // WM_SETTINGCHANGE
-                            0 as WPARAM,
-                            env_str.as_ptr() as LPARAM,
-                            SMTO_ABORTIFHUNG,
-                            5000,
-                            std::ptr::null_mut()
-                        );
-                    }
-                }
-            }
-        }
-    }
-}
 
-#[cfg(not(windows))]
-fn remove_from_user_path() {}
+
 
 #[cfg(all(windows, not(debug_assertions)))]
-fn add_to_user_path() {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let exe_dir_str = exe_dir.to_string_lossy().to_string();
-            
-            // Only add if it's installed in Program Files or AppData (avoid adding dev folder)
-            if exe_dir_str.contains("rsiew") {
-                use winreg::enums::*;
-                use winreg::RegKey;
-                use winapi::um::winuser::{SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG};
-                use std::os::windows::ffi::OsStrExt;
-
-                let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-                if let Ok((env, _)) = hkcu.create_subkey("Environment") {
-                    let current_path: String = env.get_value("Path").unwrap_or_default();
-                    
-                    if !current_path.contains(&exe_dir_str) {
-                        let new_path = if current_path.ends_with(';') || current_path.is_empty() {
-                            format!("{}{}", current_path, exe_dir_str)
-                        } else {
-                            format!("{};{}", current_path, exe_dir_str)
-                        };
-                        
-                        let _ = env.set_value("Path", &new_path);
-                        
-                        // Broadcast environment change
-                        unsafe {
-                            use winapi::shared::minwindef::{WPARAM, LPARAM};
-                            let env_str: Vec<u16> = std::ffi::OsStr::new("Environment").encode_wide().chain(std::iter::once(0)).collect();
-                            SendMessageTimeoutW(
-                                HWND_BROADCAST,
-                                0x001A, // WM_SETTINGCHANGE
-                                0 as WPARAM,
-                                env_str.as_ptr() as LPARAM,
-                                SMTO_ABORTIFHUNG,
-                                5000,
-                                std::ptr::null_mut()
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[cfg(not(windows))]
-fn add_to_user_path() {}
-
-#[cfg(windows)]
 fn attach_console() {
     use winapi::um::wincon::{AttachConsole, ATTACH_PARENT_PROCESS};
     unsafe {
@@ -146,6 +57,27 @@ fn attach_console() {
 
 #[cfg(not(windows))]
 fn attach_console() {}
+
+fn format_duration(seconds: i64) -> String {
+    let h = seconds / 3600;
+    let m = (seconds % 3600) / 60;
+    let s = seconds % 60;
+    if h > 0 {
+        format!("{}h {}m", h, m)
+    } else if m > 0 {
+        format!("{}m {}s", m, s)
+    } else {
+        format!("{}s", s)
+    }
+}
+
+fn truncate_string(s: &str, max_len: usize) -> String {
+    if s.chars().count() <= max_len {
+        s.to_string()
+    } else {
+        s.chars().take(max_len - 1).collect::<String>() + "…"
+    }
+}
 
 fn print_console(msg: &str) {
     #[cfg(windows)]
@@ -175,7 +107,8 @@ fn print_console(msg: &str) {
 
 fn main() {
     #[cfg(all(windows, not(debug_assertions)))]
-    add_to_user_path();
+    user_path::add_to_user_path();
+    #[cfg(all(windows, not(debug_assertions)))]
     attach_console();
 
     let cli = match Cli::try_parse() {
@@ -217,11 +150,38 @@ fn main() {
 
             match db.get_stats_by_range(start_ts, end_ts) {
                 Ok(stats) => {
+                    let total_seconds: i64 = stats.iter().map(|s| s.duration).sum();
+
                     let mut output = String::new();
-                    output.push_str("=== Work Dynamics Stats ===\n");
-                    for stat in stats {
-                        output.push_str(&format!("{}: {} seconds\n", stat.app_name, stat.duration));
+                    output.push_str("=========================================================\n");
+                    output.push_str("      Work Dynamics Stats\n");
+                    output.push_str("=========================================================\n");
+
+                    if stats.is_empty() {
+                        output.push_str("No activity recorded.\n");
+                    } else {
+                        output.push_str(&format!("{:<30} | {:>10} | {:>8}\n", "App Name", "Duration", "%"));
+                        output.push_str("--------------------------------------------------------\n");
+
+                        for stat in &stats {
+                            let percentage = if total_seconds > 0 {
+                                (stat.duration as f64 / total_seconds as f64) * 100.0
+                            } else {
+                                0.0
+                            };
+                            let duration_str = format_duration(stat.duration);
+                            let app_name = truncate_string(&stat.app_name, 30);
+                            output.push_str(&format!(
+                                "{:<30} | {:>10} | {:>7.1}%\n",
+                                app_name, duration_str, percentage
+                            ));
+                        }
+
+                        output.push_str("--------------------------------------------------------\n");
+                        output.push_str(&format!("Total: {:>38}\n", format_duration(total_seconds)));
                     }
+
+                    output.push_str("=========================================================\n");
                     print_console(&output);
                 }
                 Err(e) => {
@@ -230,10 +190,9 @@ fn main() {
             }
         }
         Some(Commands::UninstallCleanup) => {
-            remove_from_user_path();
+            user_path::remove_from_user_path();
         }
         None => {
-            // 没有子命令，运行图形界面模式
             rsiew_lib::run()
         }
     }
