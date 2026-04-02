@@ -1,7 +1,8 @@
-use std::env;
-use std::process::Command;
-
+#[cfg(windows)]
 fn main() {
+    use std::env;
+    use std::process::Command;
+
     let args: Vec<String> = env::args().collect();
     
     let mut exe_path = env::current_exe().expect("Failed to get current exe path");
@@ -26,3 +27,8 @@ fn main() {
         std::process::exit(status.code().unwrap_or(0));
     }
 }
+
+// 在非 Windows 平台（如 macOS/Linux），这个文件不需要做任何事，
+// 提供一个空的 main 函数让 Cargo 能顺利编译通过（虽然实际上我们不会用到它）。
+#[cfg(not(windows))]
+fn main() {}
