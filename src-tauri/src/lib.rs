@@ -38,6 +38,27 @@ struct StatsPayload {
     exe_path: String,
 }
 
+fn format_duration(seconds: i64) -> String {
+    let h = seconds / 3600;
+    let m = (seconds % 3600) / 60;
+    let s = seconds % 60;
+    if h > 0 {
+        format!("{}h {}m", h, m)
+    } else if m > 0 {
+        format!("{}m {}s", m, s)
+    } else {
+        format!("{}s", s)
+    }
+}
+
+fn truncate_string(s: &str, max_len: usize) -> String {
+    if s.chars().count() <= max_len {
+        s.to_string()
+    } else {
+        s.chars().take(max_len - 1).collect::<String>() + "…"
+    }
+}
+
 #[tauri::command]
 fn get_today_stats(state: tauri::State<Arc<Mutex<AppState>>>) -> Result<Vec<StatsPayload>, String> {
     let state = state.lock().unwrap();
@@ -66,6 +87,8 @@ fn get_app_icon_native(exe_path: String) -> String {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+use tauri_plugin_cli::CliExt;
+
 pub fn run() {
     let data_dir = get_data_dir();
     let db_path = data_dir.join("rsiew.db");
@@ -123,6 +146,7 @@ pub fn run() {
     });
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let is_visible = window.is_visible().unwrap_or(false);
@@ -139,6 +163,114 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            if let Ok(matches) = app.cli().matches() {
+                if let Some(subcommand) = matches.subcommand {
+                    match subcommand.name.as_str() {
+                        "stats" => {
+                            let range = subcommand.matches.args.get("range")
+                                .and_then(|a| a.value.as_str())
+                                .unwrap_or("today");
+                            
+                            let start = subcommand.matches.args.get("start")
+                                .and_then(|a| {
+                                    if let Some(s) = a.value.as_str() {
+                                        s.parse::<i64>().ok()
+                                    } else {
+                                        a.value.as_i64()
+                                    }
+                                });
+                                
+                            let end = subcommand.matches.args.get("end")
+                                .and_then(|a| {
+                                    if let Some(s) = a.value.as_str() {
+                                        s.parse::<i64>().ok()
+                                    } else {
+                                        a.value.as_i64()
+                                    }
+                                });
+
+                            let now = chrono::Local::now().timestamp();
+                            let mut start_ts = 0;
+                            let mut end_ts = now;
+
+                            let valid_range = match range {
+                                "today" => {
+                                    let today = chrono::Local::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
+                                    let today_local = today.and_local_timezone(chrono::Local).unwrap();
+                                    start_ts = today_local.timestamp();
+                                    true
+                                },
+                                "week" => {
+                                    let today = chrono::Local::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
+                                    let today_local = today.and_local_timezone(chrono::Local).unwrap();
+                                    start_ts = today_local.timestamp() - 7 * 24 * 3600;
+                                    true
+                                },
+                                _ => {
+                                    println!("Unknown range. Use 'today' or 'week'");
+                                    false
+                                }
+                            };
+
+                            if valid_range {
+                                if let Some(s) = start { start_ts = s; }
+                                if let Some(e) = end { end_ts = e; }
+
+                                let db_path = get_data_dir().join("rsiew.db");
+                                if let Ok(db) = database::Database::new(&db_path) {
+                                    if let Ok(stats) = db.get_stats_by_range(start_ts, end_ts) {
+                                        let total_seconds: i64 = stats.iter().map(|s| s.duration).sum();
+
+                                        let mut output = String::new();
+                                        output.push_str("=========================================================\n");
+                                        output.push_str("      Work Dynamics Stats\n");
+                                        output.push_str("=========================================================\n");
+
+                                        if stats.is_empty() {
+                                            output.push_str("No activity recorded.\n");
+                                        } else {
+                                            output.push_str(&format!("{:<30} | {:>10} | {:>8}\n", "App Name", "Duration", "%"));
+                                            output.push_str("--------------------------------------------------------\n");
+
+                                            for stat in &stats {
+                                                let percentage = if total_seconds > 0 {
+                                                    (stat.duration as f64 / total_seconds as f64) * 100.0
+                                                } else {
+                                                    0.0
+                                                };
+                                                let duration_str = format_duration(stat.duration);
+                                                let app_name = truncate_string(&stat.app_name, 30);
+                                                output.push_str(&format!(
+                                                    "{:<30} | {:>10} | {:>7.1}%\n",
+                                                    app_name, duration_str, percentage
+                                                ));
+                                            }
+
+                                            output.push_str("--------------------------------------------------------\n");
+                                            output.push_str(&format!("Total: {:>38}\n", format_duration(total_seconds)));
+                                        }
+                                        output.push_str("=========================================================\n");
+                                        println!("{}", output);
+                                    } else {
+                                        println!("Error querying stats");
+                                    }
+                                } else {
+                                    println!("Failed to open DB");
+                                }
+                            }
+                            app.handle().exit(0);
+                            return Ok(());
+                        }
+                        "uninstall-cleanup" => {
+                            user_path::remove_from_user_path();
+                            app.handle().exit(0);
+                            return Ok(());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;

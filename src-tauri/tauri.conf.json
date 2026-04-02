@@ -9,6 +9,39 @@
     "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist"
   },
+  "plugins": {
+    "cli": {
+      "description": "rsiew CLI",
+      "subcommands": {
+        "stats": {
+          "description": "Query work dynamics statistics",
+          "args": [
+            {
+              "name": "range",
+              "description": "Time range: today, week, or custom timestamps",
+              "index": 1
+            },
+            {
+              "name": "start",
+              "short": "s",
+              "description": "Custom start timestamp (Unix seconds)",
+              "takesValue": true
+            },
+            {
+              "name": "end",
+              "short": "e",
+              "description": "Custom end timestamp (Unix seconds)",
+              "takesValue": true
+            }
+          ]
+        },
+        "uninstall-cleanup": {
+          "description": "Hidden command for PATH cleanup during uninstall",
+          "args": []
+        }
+      }
+    }
+  },
   "app": {
     "windows": [
       {
