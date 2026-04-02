@@ -25,6 +25,9 @@
   "bundle": {
     "active": true,
     "targets": "nsis",
+    "resources": {
+      "target/release/rsiew-cli.exe": "rsiew-cli.exe"
+    },
     "windows": {
       "nsis": {
         "installerHooks": "build/nsis/hooks.nsh"
