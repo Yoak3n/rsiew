@@ -158,7 +158,7 @@ pub fn run() {
                 ));
                 let auto_i = CheckMenuItem::with_id(app, "autostart", "AutoStart", true, app.autolaunch().is_enabled().unwrap_or(false), None::<&str>)?;
                 // menu = Menu::with_items(app, &[&auto_i,&show_i, &quit_i])?;
-                menu.append_items(&[&auto_i])?;
+                menu.insert_items(&[&auto_i],0)?;
             }
 
             let _tray = TrayIconBuilder::with_id("main")
