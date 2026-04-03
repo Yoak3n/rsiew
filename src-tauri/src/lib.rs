@@ -4,20 +4,21 @@ pub mod ocr;
 pub mod screenshot;
 pub mod icon_extractor;
 pub mod user_path;
+pub mod core;
+pub mod schema;
+
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::path::PathBuf;
-use serde::Serialize;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
-
-pub struct AppState {
-    pub db: database::Database,
-}
+use schema::AppState;
+use core::cmd::{get_today_stats, get_app_icon_native};
 
 fn get_data_dir() -> PathBuf {
     let mut path = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -31,39 +32,6 @@ fn get_poll_interval_ms() -> u64 {
     #[cfg(not(target_os = "macos"))] { 500 }
 }
 
-#[derive(Serialize)]
-struct StatsPayload {
-    app_name: String,
-    duration: i64,
-    exe_path: String,
-}
-
-#[tauri::command]
-fn get_today_stats(state: tauri::State<Arc<Mutex<AppState>>>) -> Result<Vec<StatsPayload>, String> {
-    let state = state.lock().unwrap();
-    let end_ts = chrono::Local::now().timestamp();
-    let start_ts = end_ts - 86400;
-
-    let usages = state.db.get_stats_by_range(start_ts, end_ts).map_err(|e| e.to_string())?;
-    
-    let mut payload = Vec::new();
-    for u in usages {
-        // Since we didn't add exe_path to AppUsage struct, we leave it empty here, 
-        // the frontend can use get_app_icon_native with the name if exe_path is missing, 
-        // or we could query the latest exe_path from activities.
-        payload.push(StatsPayload {
-            app_name: u.app_name,
-            duration: u.duration,
-            exe_path: u.exe_path,
-        });
-    }
-    Ok(payload)
-}
-
-#[tauri::command]
-fn get_app_icon_native(exe_path: String) -> String {
-    icon_extractor::extract_icon_base64(&exe_path)
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -139,46 +107,7 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
-
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: tauri::tray::MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let is_visible = window.is_visible().unwrap_or(false);
-                            if is_visible {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                    }
-                })
-                .build(app)?;
+            let _ = core::tray::create_tray_icon(app)?;
 
             Ok(())
         })
