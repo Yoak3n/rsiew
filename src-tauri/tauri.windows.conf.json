@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "target/release/rsiew-cli.exe": "rsiew-cli.exe"
+    }
+  }
+}

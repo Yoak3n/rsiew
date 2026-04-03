@@ -165,13 +165,11 @@ fn main() {
     user_path::add_to_user_path();
     #[cfg(all(windows, not(debug_assertions)))]
     attach_console();
-    print!("entry");
+    
     let cli = match Cli::try_parse() {
         Ok(c) => c,
         Err(e) => {
-            print_console(&e.render().to_string());
-            detach_and_send_enter();
-            return;
+            e.exit();
         }
     };
 
@@ -244,7 +242,6 @@ fn main() {
                     print_console(&format!("Error querying stats: {}\n", e));
                 }
             }
-            detach_and_send_enter();
         }
         Some(Commands::UninstallCleanup) => {
             user_path::remove_from_user_path();
