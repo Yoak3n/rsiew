@@ -29,3 +29,15 @@ pub fn get_today_stats(state: State<Arc<Mutex<AppState>>>) -> Result<Vec<StatsPa
 pub fn get_app_icon_native(exe_path: String) -> String {
     extract_icon_base64(&exe_path)
 }
+
+#[tauri::command]
+pub async fn check_window_url(webview_window: tauri::WebviewWindow) -> Result<String, String> {
+    let url = webview_window.url().unwrap();
+    Ok(url.to_string())
+}
+use tauri::Url;
+#[tauri::command]
+pub async fn navigate_to_url(webview_window: tauri::WebviewWindow, url: String) -> Result<(), String> {
+    let _ = webview_window.navigate(Url::parse(&url).unwrap());
+    Ok(())
+}

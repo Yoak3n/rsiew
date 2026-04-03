@@ -2,7 +2,7 @@
   "identifier": "com.Yoake.rsiew",
   "bundle": {
     "resources": {
-      "target/release/rsiew-cli.exe": "rsiew-cli.exe"
+      "target/release/rsiew-entry.exe": "rsiew-entry.exe"
     }
   }
 }

@@ -1,15 +1,33 @@
 use anyhow::Result;
 use tauri::{
-    App, Manager, menu::{CheckMenuItem, Menu, MenuItem}, tray::{MouseButton, TrayIconBuilder, TrayIconEvent}
+    menu::{CheckMenuItem, Menu, MenuItem},
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    App, Manager,
 };
+#[cfg(desktop)]
+use tauri_plugin_autostart::{MacosLauncher,ManagerExt};
 
 pub fn create_tray_icon(app: &App) -> Result<()> {
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+    #[cfg(desktop)]
     {
-        let auto_i = CheckMenuItem::with_id(app, "auto", "Auto Start", true,true, None::<&str>)?;
-        menu.insert(&auto_i,0)?;
+   
+        let _ = app.handle().plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--autostart"]),
+        ));
+        let auto_i = CheckMenuItem::with_id(
+            app,
+            "autostart",
+            "AutoStart",
+            true,
+            app.autolaunch().is_enabled().unwrap_or(false),
+            None::<&str>,
+        )?;
+        // menu = Menu::with_items(app, &[&auto_i,&show_i, &quit_i])?;
+        menu.insert_items(&[&auto_i], 0)?;
     }
     let _tray = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone())
@@ -25,12 +43,21 @@ pub fn create_tray_icon(app: &App) -> Result<()> {
                     let _ = window.set_focus();
                 }
             }
-            
+
             #[cfg(desktop)]
             "auto" => {
-                use tauri_plugin_autostart::ManagerExt;
-                app.app_handle().autolaunch().enable().unwrap();
-                // 处理自动启动逻辑
+                let autostart_manager = app.autolaunch();
+                let currently_enabled = autostart_manager.is_enabled().unwrap_or(false);
+                let new_state = if currently_enabled {
+                    autostart_manager.disable().is_ok() && false
+                } else {
+                    autostart_manager.enable().is_ok()
+                };
+                if let Some(item) = app.menu().and_then(|m| m.get("autostart")) {
+                    if let Some(check_item) = item.as_check_menuitem() {
+                        let _ = check_item.set_checked(new_state);
+                    }
+                }
             }
             _ => {}
         })

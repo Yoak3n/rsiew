@@ -1,5 +1,5 @@
 !macro NSIS_HOOK_POSTINSTALL
-  Rename "$INSTDIR\rsiew-cli.exe" "$INSTDIR\rsiew.com"
+  Rename "$INSTDIR\rsiew-entry.exe" "$INSTDIR\rsiew.com"
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL
