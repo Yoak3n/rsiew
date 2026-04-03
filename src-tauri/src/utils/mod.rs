@@ -1,3 +1,6 @@
+pub mod icon_extractor;
+
+
 use std::path::PathBuf;
 
 pub fn get_data_dir() -> PathBuf {

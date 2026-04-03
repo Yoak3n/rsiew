@@ -8,7 +8,6 @@ pub struct StatsPayload {
     pub exe_path: String,
 }
 
-
 pub struct AppState {
     pub db: database::Database,
 }

@@ -87,6 +87,15 @@ impl Database {
         Ok(())
     }
 
+    pub fn update_activity_screenshot(&self, id: i64, screenshot_path: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE activities SET screenshot_path = ?1 WHERE id = ?2",
+            params![screenshot_path, id],
+        )?;
+        Ok(())
+    }
+
     pub fn get_latest_activity(&self) -> Result<Option<Activity>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(

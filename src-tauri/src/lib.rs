@@ -1,11 +1,7 @@
 pub mod cli;
 pub mod core;
 pub mod database;
-pub mod icon_extractor;
-pub mod monitor;
-pub mod ocr;
 pub mod schema;
-pub mod screenshot;
 pub mod service;
 pub mod user_path;
 pub mod utils;

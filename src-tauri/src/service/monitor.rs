@@ -192,3 +192,41 @@ pub fn get_active_window() -> Result<ActiveWindow, String> {
         exe_path: "/mock/path/MockApp.app".to_string(),
     })
 }
+
+
+pub fn is_system_process(app_name: &str) -> bool {
+    let name_lower = app_name.to_lowercase();
+    let name_lower = name_lower.trim_end_matches(".exe");
+
+    matches!(
+        name_lower,
+        // Windows 桌面 / 锁屏 / 搜索
+        "desktop"
+            | "lockapp"
+            | "logonui"
+            | "searchapp"
+            | "searchhost"
+            | "shellexperiencehost"
+            | "startmenuexperiencehost"
+            | "textinputhost"
+            | "applicationframehost"
+            | "dwm"
+            | "csrss"
+            | "taskmgr"
+            // macOS 桌面 / 锁屏
+            | "loginwindow"
+            | "screensaverengine"
+            | "screensaver"
+            // Linux 桌面 / 锁屏 / 系统进程
+            | "cinnamon-session"
+            | "cinnamon-screensaver"
+            | "gnome-shell"
+            | "gnome-screensaver"
+            | "plasmashell"
+            | "kscreenlocker"
+            | "xscreensaver"
+            | "i3lock"
+            | "swaylock"
+            | "xfce4-session"
+    )
+}

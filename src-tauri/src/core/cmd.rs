@@ -3,7 +3,7 @@ use tauri::{
 };
 use std::sync::{Arc, Mutex};
 use crate::schema::{StatsPayload, AppState};
-use crate::icon_extractor::{extract_icon_base64};
+use crate::utils::icon_extractor::{extract_icon_base64};
 
 #[command]
 pub fn get_today_stats(state: State<Arc<Mutex<AppState>>>) -> Result<Vec<StatsPayload>, String> {
