@@ -1,23 +1,23 @@
 [package]
 name = "rsiew"
-version = "0.1.6"
+version = "0.1.7"
 description = "A simplified Work Review clone with Native Icons and Tray"
 authors = ["Yoake"]
 edition = "2021"
 repository = "https://github.com/Yoake/rsiew"
-
+default-run = "rsiew"
 
 [lib]
 name = "rsiew_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "rsiew-gui"
-path = "src/main.rs"
+name = "rsiew"
+path = "src/bin/rsiew-gui.rs"
 
 [[bin]]
-name = "rsiew-cli"
-path = "src/bin/rsiew-cli.rs"
+name = "rsiew-entry"
+path = "src/bin/rsiew-entry.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -33,6 +33,7 @@ rusqlite = { version = "0.30", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
 env_logger = "0.10"
+once_cell = { version = "1.21.4", features = [] }
 anyhow = "1.0"
 thiserror = "1.0"
 clap = { version = "4", features = ["derive"] }

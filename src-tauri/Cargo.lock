@@ -4082,7 +4082,7 @@ checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
 
 [[package]]
 name = "rsiew"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4092,6 +4092,7 @@ dependencies = [
  "env_logger",
  "image 0.25.10",
  "log",
+ "once_cell",
  "rusqlite",
  "screenshots",
  "serde",
