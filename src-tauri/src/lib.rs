@@ -4,20 +4,23 @@ pub mod monitor;
 pub mod ocr;
 pub mod screenshot;
 pub mod user_path;
+pub mod core;
+pub mod schema;
+
 
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use std::path::PathBuf;
+
 use tauri::{
     menu::{Menu, MenuItem,CheckMenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
-
-pub struct AppState {
-    pub db: database::Database,
-}
+use schema::AppState;
+use core::cmd::{get_today_stats, get_app_icon_native};
 
 fn get_data_dir() -> PathBuf {
     let mut path = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));

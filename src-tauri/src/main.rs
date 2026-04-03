@@ -44,87 +44,6 @@ fn get_data_dir() -> PathBuf {
 }
 
 
-
-
-
-#[cfg(all(windows, not(debug_assertions)))]
-fn attach_console() {
-    use winapi::um::wincon::{AttachConsole, ATTACH_PARENT_PROCESS};
-    use winapi::um::processenv::GetStdHandle;
-    use winapi::um::winbase::{STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
-    use winapi::um::fileapi::CreateFileW;
-    use winapi::um::winnt::{FILE_SHARE_WRITE, GENERIC_READ, GENERIC_WRITE};
-    use winapi::um::fileapi::OPEN_EXISTING;
-    use std::os::windows::ffi::OsStrExt;
-    use std::ptr;
-
-    unsafe {
-        AttachConsole(ATTACH_PARENT_PROCESS);
-
-        // Redirect stdout and stderr to the console
-        let con_out_name: Vec<u16> = "CONOUT$\0".encode_utf16().collect();
-        let con_out = CreateFileW(
-            con_out_name.as_ptr(),
-            GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_WRITE,
-            ptr::null_mut(),
-            OPEN_EXISTING,
-            0,
-            ptr::null_mut()
-        );
-
-        if con_out != winapi::um::handleapi::INVALID_HANDLE_VALUE {
-            use winapi::um::processenv::SetStdHandle;
-            SetStdHandle(STD_OUTPUT_HANDLE, con_out);
-            SetStdHandle(STD_ERROR_HANDLE, con_out);
-        }
-    }
-}
-
-#[cfg(not(windows))]
-fn attach_console() {}
-
-
-
- #[cfg(windows)]
-fn detach_and_send_enter() {
-    use winapi::um::wincon::{FreeConsole, WriteConsoleInputW, INPUT_RECORD, KEY_EVENT};
-    use winapi::um::processenv::GetStdHandle;
-    use winapi::um::winbase::STD_INPUT_HANDLE;
-    use winapi::um::winuser::VK_RETURN;
-    use std::ptr;
- 
-    unsafe {
-        let stdin = GetStdHandle(STD_INPUT_HANDLE);
-        if stdin != ptr::null_mut() && stdin != winapi::um::handleapi::INVALID_HANDLE_VALUE {
-            let mut record: INPUT_RECORD = std::mem::zeroed();
-            record.EventType = KEY_EVENT;
-            {
-                let key_event = record.Event.KeyEvent_mut();
-                key_event.bKeyDown = 1;
-                key_event.wVirtualKeyCode = VK_RETURN as u16;
-                key_event.wVirtualScanCode = 0x1C;
-                *key_event.uChar.UnicodeChar_mut() = '\r' as u16;
-                key_event.dwControlKeyState = 0;
-            }
- 
-            let mut written = 0;
-            WriteConsoleInputW(stdin, &mut record, 1, &mut written);
- 
-            {
-                let key_event = record.Event.KeyEvent_mut();
-                key_event.bKeyDown = 0;
-            }
-            WriteConsoleInputW(stdin, &mut record, 1, &mut written);
-        }
-        FreeConsole();
-    }
-
-}
-
-#[cfg(not(windows))]
-fn detach_and_send_enter() {}
-
 fn format_duration(seconds: i64) -> String {
     let h = seconds / 3600;
     let m = (seconds % 3600) / 60;
@@ -163,8 +82,6 @@ fn print_console(msg: &str) {
 fn main() {
     #[cfg(all(windows, not(debug_assertions)))]
     user_path::add_to_user_path();
-    #[cfg(all(windows, not(debug_assertions)))]
-    attach_console();
     
     let cli = match Cli::try_parse() {
         Ok(c) => c,
