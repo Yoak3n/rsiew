@@ -1,6 +1,6 @@
 pub mod icon_extractor;
-
-
+pub mod activity_classifier;
+pub mod categorize;
 use std::path::PathBuf;
 
 pub fn get_data_dir() -> PathBuf {

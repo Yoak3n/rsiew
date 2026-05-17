@@ -1,4 +1,5 @@
 !macro NSIS_HOOK_POSTINSTALL
+  Delete "$INSTDIR\rsiew.com"
   Rename "$INSTDIR\rsiew-entry.exe" "$INSTDIR\rsiew.com"
 !macroend
 

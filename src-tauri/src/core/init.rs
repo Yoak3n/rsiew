@@ -19,7 +19,7 @@ pub fn setup_plugins(builder: Builder<Wry>) -> Builder<Wry> {
 pub fn generate_handlers() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static
 {
     use super::cmd::*;
-    tauri::generate_handler![get_today_stats, get_app_icon_native, check_window_url]
+    tauri::generate_handler![get_today_stats, get_app_icon_native, check_window_url, toggle_recording, get_recording_status]
 }
 
 pub fn setup_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {

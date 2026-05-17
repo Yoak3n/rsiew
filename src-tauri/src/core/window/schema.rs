@@ -12,19 +12,15 @@ pub enum WindowState {
     NotExist,
 }
 
-
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowType {
-    Main
+    Main,
 }
 
 impl WindowType {
     /// 获取所有窗口类型
     pub fn all() -> [Self; 1] {
-        [
-            WindowType::Main
-        ]
+        [WindowType::Main]
     }
 
     pub fn from_label(label: &str) -> Option<Self> {
@@ -36,19 +32,34 @@ impl WindowType {
 
     pub fn label(&self) -> &'static str {
         match self {
-            WindowType::Main => "main"
+            WindowType::Main => "main",
         }
     }
 
     pub fn url(&self) -> &'static str {
         match self {
-            WindowType::Main => "/"
+            WindowType::Main => "/",
         }
     }
 
     pub fn title(&self) -> &'static str {
         match self {
-            WindowType::Main => ""
+            WindowType::Main => "",
         }
     }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WindowOperationResult {
+    /// 窗口已显示并获得焦点
+    Shown,
+    /// 窗口已隐藏
+    Hidden,
+    /// 创建了新窗口
+    Created,
+    /// 操作失败
+    Failed,
+    /// 无需操作
+    NoAction,
 }

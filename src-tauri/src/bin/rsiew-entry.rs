@@ -2,7 +2,20 @@
 fn main() {
     use std::env;
     use std::process::Command;
-
+    
+    // 设置控制台输出编码为 UTF-8，解决中文乱码问题
+    #[cfg(windows)]
+    unsafe {
+        extern "system" {
+            fn SetConsoleOutputCP(wCodePageID: u32) -> i32;
+        }
+        SetConsoleOutputCP(65001); // CP_UTF8
+    }
+    
+    let is_cli = rsiew_lib::cli::parse_as_cli();
+    if is_cli {
+        return;
+    }
     let args: Vec<String> = env::args().collect();
 
     let mut exe_path = env::current_exe().expect("Failed to get current exe path");

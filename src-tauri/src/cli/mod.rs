@@ -1,7 +1,14 @@
 mod out;
+mod watch;
+mod rule;
+mod stats;
 
-use crate::{database::Database, user_path, utils::get_data_dir};
-use clap::{Parser, Subcommand};
+use stats::stats_commands;
+use watch::watch_commands;
+use rule::{handle_rule_command, RuleCommands};
+
+use clap::{error::ErrorKind, Parser, Subcommand};
+
 
 #[derive(Parser, Debug)]
 #[command(author, version = env!("CARGO_PKG_VERSION"), about, long_about = None)]
@@ -27,19 +34,70 @@ enum Commands {
         #[arg(short = 'e', long, value_name = "TIMESTAMP")]
         end: Option<i64>,
     },
+    /// Watch the system dynamics in real-time with various filters
+    Watch {
+        /// Watch work dynamics in real-time
+        #[arg(short = 'a', long)]
+        all: bool,
+        /// Watch only one process
+        #[arg(short = 'o', long)]
+        only: bool,
+        /// Watch tray applications
+        #[arg(short = 't', long)]
+        tray: bool,
+        /// Watch taskbar windows
+        #[arg(short = 'b', long)]
+        taskbar: bool,
+        /// Ignore specific process names
+        #[arg(short = 'i', long, value_name = "APP_NAME")]
+        ignore: Option<String>,
+    },
+    /// Manage rules (description and category)
+    Rule {
+        #[command(subcommand)]
+        command: RuleCommands,
+    },
     /// Hidden command for PATH cleanup during uninstall
     #[command(hide = true)]
     UninstallCleanup,
 }
 
 pub fn parse_as_cli() -> bool {
-    let cli = Cli::try_parse().unwrap();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => match e.kind() {
+            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
+                e.print().expect("Error writing to stdout");
+                std::process::exit(0);
+            }
+            ErrorKind::MissingSubcommand => return false,
+            _ => {
+                e.print().expect("Error writing to stdout");
+                std::process::exit(1);
+            }
+        },
+    };
     match cli.command {
         Some(Commands::Stats { range, start, end }) => {
             stats_commands(range, start, end);
             true
         }
+        Some(Commands::Watch {
+            all,
+            only,
+            tray,
+            taskbar,
+            ignore,
+        }) => {
+            watch_commands(all, only, tray, taskbar, ignore);
+            true
+        }
+        Some(Commands::Rule { command }) => {
+            handle_rule_command(command);
+            true
+        }
         Some(Commands::UninstallCleanup) => {
+            #[cfg(all(windows, not(debug_assertions)))]
             user_path::remove_from_user_path();
             true
         }
@@ -47,48 +105,5 @@ pub fn parse_as_cli() -> bool {
     }
 }
 
-fn stats_commands(range: String, start: Option<i64>, end: Option<i64>) {
-    let db_path = get_data_dir();
-    let db = Database::new(&db_path).expect("Failed to open DB");
 
-    let now = chrono::Local::now().timestamp();
-    let mut start_ts;
-    let mut end_ts = now;
 
-    match range.as_str() {
-        "today" => {
-            let today = chrono::Local::now()
-                .date_naive()
-                .and_hms_opt(0, 0, 0)
-                .unwrap();
-            let today_local = today.and_local_timezone(chrono::Local).unwrap();
-            start_ts = today_local.timestamp();
-        }
-        "week" => {
-            let today = chrono::Local::now()
-                .date_naive()
-                .and_hms_opt(0, 0, 0)
-                .unwrap();
-            let today_local = today.and_local_timezone(chrono::Local).unwrap();
-            start_ts = today_local.timestamp() - 7 * 24 * 3600;
-        }
-        _ => {
-            println!("Unknown range. Use 'today' or 'week'");
-            return;
-        }
-    }
-
-    if let Some(s) = start {
-        start_ts = s;
-    }
-    if let Some(e) = end {
-        end_ts = e;
-    }
-
-    match db.get_stats_by_range(start_ts, end_ts) {
-        Ok(stats) => out::print_stats(stats),
-        Err(e) => {
-            println!("Error querying stats: {}", e);
-        }
-    }
-}

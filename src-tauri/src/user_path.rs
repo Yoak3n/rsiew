@@ -1,6 +1,6 @@
 
 
-#[cfg(windows)]
+#[cfg(all(windows, not(debug_assertions)))]
 pub fn remove_from_user_path() {
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
@@ -46,7 +46,8 @@ pub fn remove_from_user_path() {
 pub fn remove_from_user_path() {}
 
 
-
+/// 如果是强制的，那就改为nsis脚本注册PATH
+/// 如果之后改为非强制，那就改为当前进程注册PATH
 #[cfg(all(windows, not(debug_assertions)))]
 pub fn add_to_user_path() {
     if let Ok(exe_path) = std::env::current_exe() {

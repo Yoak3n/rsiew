@@ -3,3 +3,4 @@ pub mod tray;
 pub mod init;
 pub mod handle;
 pub mod window;
+pub mod error;

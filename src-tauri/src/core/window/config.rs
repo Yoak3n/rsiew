@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::schema::WindowType;
 
 #[derive(Debug, Clone)]
@@ -13,6 +15,7 @@ pub struct WindowConfig {
     pub maximizable: bool,
     pub focused: bool,
     pub center: bool,
+    pub float: bool,
 }
 
 impl WindowConfig {
@@ -30,7 +33,14 @@ impl WindowConfig {
                 maximizable: true,
                 focused: true,
                 center: true,
+                float: false,
             },
         }
+    }
+    pub fn default_config() -> HashMap<WindowType, WindowConfig> {
+        HashMap::from([(
+            WindowType::Main,
+            WindowConfig::new(WindowType::Main),
+        )])
     }
 }

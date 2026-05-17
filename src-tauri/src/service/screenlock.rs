@@ -1,3 +1,6 @@
+
+#![allow(dead_code)]
+
 use chrono::Timelike;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
